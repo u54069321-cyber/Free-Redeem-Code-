@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reward Hub - Gaming</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root {
+            --bg: #050505;
+            --card-bg: rgba(255, 255, 255, 0.06);
+            --glass: rgba(255, 255, 255, 0.1);
+            --primary: #00f3ff;
+            --secondary: #7000ff;
+            --accent: #ff007a;
+            --text-main: #ffffff;
+            --text-dim: #a0a0a0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; overflow-x: hidden; }
+
+        /* Background Glows */
+        .glow { position: fixed; width: 300px; height: 300px; border-radius: 50%; filter: blur(120px); z-index: -1; opacity: 0.3; }
+        .glow-1 { background: var(--secondary); top: -100px; left: -100px; }
+        .glow-2 { background: var(--primary); bottom: -100px; right: -100px; }
+
+        .container { max-width: 480px; margin: 0 auto; min-height: 100vh; padding: 20px; }
+
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 10px 5px; }
+        header h1 { font-family: 'Poppins'; font-size: 24px; background: linear-gradient(to right, #fff, var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .search-bar { background: var(--card-bg); border: 1px solid var(--glass); padding: 15px 20px; border-radius: 20px; display: flex; align-items: center; gap: 12px; backdrop-filter: blur(10px); margin-bottom: 25px; }
+        .search-bar input { background: transparent; border: none; outline: none; color: white; width: 100%; font-size: 15px; }
+        .search-bar i { color: var(--text-dim); }
+
+        .section-title { font-family: 'Poppins'; font-size: 18px; margin-bottom: 15px; color: var(--text-dim); letter-spacing: 0.5px; }
+
+        .game-card { background: var(--card-bg); border: 1px solid var(--glass); border-radius: 28px; padding: 20px; display: flex; align-items: center; gap: 18px; margin-bottom: 16px; backdrop-filter: blur(20px); transition: 0.3s; }
+        .game-card:active { transform: scale(0.97); }
+        .game-card img { width: 70px; height: 70px; border-radius: 20px; object-fit: cover; box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
+        .game-info { flex: 1; }
+        .game-info h3 { font-size: 17px; margin-bottom: 4px; font-weight: 600; }
+        .game-info p { font-size: 13px; color: var(--text-dim); }
+
+        .btn-unlock { background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none; padding: 12px 20px; border-radius: 15px; color: white; font-weight: 700; font-family: 'Poppins'; cursor: pointer; box-shadow: 0 5px 15px rgba(112, 0, 255, 0.4); }
+
+        /* Modals */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(15px); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 25px; }
+        .modal.active { display: flex; }
+        .modal-box { background: #111; border: 1px solid var(--glass); border-radius: 35px; padding: 40px 25px; width: 100%; max-width: 380px; text-align: center; }
+        
+        .modal-icon { font-size: 50px; margin-bottom: 20px; display: inline-block; padding: 20px; border-radius: 30px; background: rgba(0, 243, 255, 0.1); color: var(--primary); }
+        .modal h2 { font-family: 'Poppins'; margin-bottom: 12px; }
+        .modal p { color: var(--text-dim); font-size: 14px; margin-bottom: 30px; line-height: 1.6; }
+
+        .code-display { background: rgba(255,255,255,0.05); border: 2px dashed var(--primary); padding: 20px; border-radius: 20px; font-family: monospace; font-size: 22px; letter-spacing: 2px; color: var(--primary); margin-bottom: 25px; }
+
+        .loader { width: 40px; height: 40px; border: 4px solid var(--glass); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .footer-credits { text-align: center; margin-top: 40px; font-size: 12px; color: rgba(255,255,255,0.2); letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <div class="container">
+        <header>
+            <h1>Gaming Hub</h1>
+            <i class="fa-solid fa-bell" style="font-size: 20px; color: var(--text-dim);"></i>
+        </header>
+
+        <div class="search-bar">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="gameSearch" placeholder="Search rewards..." onkeyup="filterGames()">
+        </div>
+
+        <h2 class="section-title">Trending Rewards</h2>
+        <div id="gameList">
+            <!-- Loading State -->
+            <div style="text-align: center; padding: 50px;">
+                <div class="loader"></div>
+                <p style="color: var(--text-dim);">Fetching rewards...</p>
+            </div>
+        </div>
+
+        <div class="footer-credits">DESIGNED BY SAURABH & RUDRA BHAI</div>
+    </div>
+
+    <!-- Step Modal -->
+    <div id="stepModal" class="modal">
+        <div class="modal-box">
+            <div class="modal-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <h2>Step Required</h2>
+            <p>Redeem code को अनलॉक करने के लिए आपको शार्टनर स्टेप पूरा करना होगा।</p>
+            <button class="btn-unlock" style="width: 100%; padding: 18px;" onclick="goToShortener()">CONTINUE TO UNLOCK</button>
+            <p style="margin-top: 20px; font-size: 12px; cursor: pointer;" onclick="closeModal('stepModal')">Maybe later</p>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="modal">
+        <div class="modal-box">
+            <div class="modal-icon" style="color: #00ff88; background: rgba(0, 255, 136, 0.1);"><i class="fa-solid fa-gift"></i></div>
+            <h2>Success!</h2>
+            <p>आपका रिडीम कोड नीचे दिया गया है:</p>
+            <div class="code-display" id="codeText">LOADING...</div>
+            <button class="btn-unlock" style="width: 100%; padding: 18px;" onclick="copyAndClose()">COPY CODE</button>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBhHEb_ZgB2dLKlkFEJ-jED0GZCmd2L6m8",
+            authDomain: "redeem-code-e8f83.firebaseapp.com",
+            databaseURL: "https://redeem-code-e8f83-default-rtdb.firebaseio.com",
+            projectId: "redeem-code-e8f83",
+            storageBucket: "redeem-code-e8f83.firebasestorage.app",
+            messagingSenderId: "1023262467224",
+            appId: "1:1023262467224:web:353104b4a8617cc16c5ced"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let sLink = "";
+
+        // Fetch Data
+        db.ref('games').on('value', snap => {
+            const list = document.getElementById('gameList');
+            list.innerHTML = '';
+            snap.forEach(child => {
+                const g = child.val();
+                list.innerHTML += `
+                    <div class="game-card" data-name="${g.name.toLowerCase()}">
+                        <img src="${g.logo_url}" onerror="this.src='https://via.placeholder.com/100'">
+                        <div class="game-info">
+                            <h3>${g.name}</h3>
+                            <p>Premium Redeem Code</p>
+                        </div>
+                        <button class="btn-unlock" onclick="openStep()">Get</button>
+                    </div>`;
+            });
+        });
+
+        db.ref('settings/shortener_link').on('value', snap => { sLink = snap.val(); });
+
+        function openStep() { document.getElementById('stepModal').classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function goToShortener() {
+            const token = "T-" + Math.random().toString(36).substr(2, 8).toUpperCase();
+            localStorage.setItem('active_token', token);
+            db.ref('tokens/' + token).set({ status: 'pending', time: Date.now() }).then(() => {
+                window.location.href = sLink;
+            });
+        }
+
+        // Handle Return
+        const urlParams = new URLSearchParams(window.location.search);
+        if(urlParams.get('verify') === '1') {
+            const myToken = localStorage.getItem('active_token');
+            if(myToken) {
+                db.ref('tokens/' + myToken).once('value', snap => {
+                    if(snap.exists() && snap.val().status === 'pending') {
+                        db.ref('redeem_codes').limitToFirst(1).once('value', codeSnap => {
+                            if(codeSnap.exists()) {
+                                const key = Object.keys(codeSnap.val())[0];
+                                const codeValue = codeSnap.val()[key];
+                                document.getElementById('codeText').innerText = codeValue;
+                                document.getElementById('successModal').classList.add('active');
+                                
+                                // Cleanup
+                                db.ref('redeem_codes/' + key).remove();
+                                db.ref('tokens/' + myToken).update({ status: 'verified' });
+                                localStorage.removeItem('active_token');
+                            } else {
+                                alert("High Traffic: Codes are currently unavailable. Try again later.");
+                            }
+                        });
+                    }
+                });
+            }
+        }
+
+        function copyAndClose() {
+            navigator.clipboard.writeText(document.getElementById('codeText').innerText);
+            alert("Copied!");
+            window.location.href = window.location.pathname;
+        }
+
+        function filterGames() {
+            const q = document.getElementById('gameSearch').value.toLowerCase();
+            document.querySelectorAll('.game-card').forEach(card => {
+                card.style.display = card.dataset.name.includes(q) ? 'flex' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>
